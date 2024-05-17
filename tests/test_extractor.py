@@ -4,6 +4,7 @@ from tempfile import SpooledTemporaryFile
 from typing import Iterator, List, Tuple
 from zipfile import ZipFile
 
+
 from flask import json
 import pytest
 from werkzeug.datastructures import FileStorage
@@ -11,6 +12,7 @@ from werkzeug.datastructures import FileStorage
 import lms.extractors.base as extractor
 import lms.extractors.ziparchive as zipfilearchive
 from lms.lmsdb.models import Course, User
+from lms.lmsweb.config import MAX_ZIP_CONTENT_SIZE
 from lms.models.errors import BadUploadFile
 from tests import conftest
 from tests.conftest import SAMPLES_DIR
@@ -175,6 +177,18 @@ class TestExtractor:
             for exercise_path in exercises_paths
         )
 
+    def test_ziparchive(self):
+        zip_file = zipfilearchive.Ziparchive(to_extract=self.zipfile_storage)
+        
+        assert zip_file.filename.endswith('.zip')
+        assert "*.mypy_cache/*" in list(zip_file.get_unwanted_files_types())
+        
+        zip_size =  sum(
+            f.file_size for f in zip_file.archive.infolist()
+        )
+        
+        assert zip_size > 0 and zip_size < MAX_ZIP_CONTENT_SIZE
+        
     def test_zip(self, course: Course, student_user: User):
         conftest.create_exercise(course, 1)
         conftest.create_exercise(course, 2)
